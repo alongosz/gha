@@ -1,0 +1,83 @@
+name: 'Docker Build and Push'
+description: 'Build Docker image and push to registry with caching support'
+author: 'Andrew Longosz'
+
+inputs:
+  image-name:
+    description: 'Docker image name'
+    required: true
+  registry:
+    description: 'Docker registry (e.g., docker.io, ghcr.io)'
+    required: false
+    default: 'docker.io'
+  username:
+    description: 'Registry username'
+    required: true
+  password:
+    description: 'Registry password or token'
+    required: true
+  dockerfile:
+    description: 'Path to Dockerfile'
+    required: false
+    default: './Dockerfile'
+  context:
+    description: 'Build context path'
+    required: false
+    default: '.'
+  platforms:
+    description: 'Target platforms for build (comma-separated)'
+    required: false
+    default: 'linux/amd64'
+  push:
+    description: 'Push image to registry'
+    required: false
+    default: 'true'
+  tags:
+    description: 'Additional tags (comma-separated)'
+    required: false
+    default: ''
+
+outputs:
+  image-digest:
+    description: 'Image digest'
+    value: ${{ steps.build.outputs.digest }}
+  image-metadata:
+    description: 'Image metadata'
+    value: ${{ steps.build.outputs.metadata }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username }}
+        password: ${{ inputs.password }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.registry }}/${{ inputs.image-name }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          ${{ inputs.tags != '' && inputs.tags || '' }}
+
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        push: ${{ inputs.push }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        platforms: ${{ inputs.platforms }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

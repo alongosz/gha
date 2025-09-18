@@ -1,0 +1,25 @@
+name: 'Action Name'
+description: 'Brief description of what this action does'
+author: 'Andrew Longosz'
+
+inputs:
+  example-input:
+    description: 'Description of the input parameter'
+    required: false
+    default: 'default-value'
+
+outputs:
+  example-output:
+    description: 'Description of the output'
+    value: ${{ steps.main-step.outputs.example }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Main action step
+      id: main-step
+      shell: bash
+      run: |
+        echo "Hello from composite action!"
+        echo "Input received: ${{ inputs.example-input }}"
+        echo "example=output-value" >> $GITHUB_OUTPUT

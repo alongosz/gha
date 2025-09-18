@@ -1,0 +1,93 @@
+name: 'Semantic Release'
+description: 'Run semantic-release with Node.js setup and configurable options'
+author: 'Andrew Longosz'
+
+inputs:
+  node-version:
+    description: 'Node.js version to use'
+    required: false
+    default: '18'
+  working-directory:
+    description: 'Working directory for semantic-release'
+    required: false
+    default: '.'
+  dry-run:
+    description: 'Run semantic-release in dry-run mode'
+    required: false
+    default: 'false'
+  extends:
+    description: 'Shareable configuration to extend'
+    required: false
+    default: ''
+  branches:
+    description: 'Branches configuration (JSON format)'
+    required: false
+    default: ''
+  plugins:
+    description: 'Additional plugins to install (space-separated)'
+    required: false
+    default: ''
+
+outputs:
+  published:
+    description: 'Whether a new release was published'
+    value: ${{ steps.semantic-release.outputs.published }}
+  version:
+    description: 'The version of the new release'
+    value: ${{ steps.semantic-release.outputs.version }}
+  release-notes:
+    description: 'The release notes of the new release'
+    value: ${{ steps.semantic-release.outputs.release-notes }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+
+    - name: Install semantic-release
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        npm install -g semantic-release
+        
+        # Install additional plugins if specified
+        if [[ -n "${{ inputs.plugins }}" ]]; then
+          npm install -g ${{ inputs.plugins }}
+        fi
+
+    - name: Create semantic-release config
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [[ -n "${{ inputs.extends }}" ]]; then
+          echo '{"extends": "${{ inputs.extends }}"}' > .releaserc.json
+        fi
+        
+        if [[ -n "${{ inputs.branches }}" ]]; then
+          echo '${{ inputs.branches }}' > .releaserc.branches.json
+          node -e "
+            const config = require('./.releaserc.json') || {};
+            const branches = require('./.releaserc.branches.json');
+            config.branches = branches;
+            require('fs').writeFileSync('./.releaserc.json', JSON.stringify(config, null, 2));
+          "
+          rm .releaserc.branches.json
+        fi
+
+    - name: Run semantic-release
+      id: semantic-release
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        if [[ "${{ inputs.dry-run }}" == "true" ]]; then
+          semantic-release --dry-run
+        else
+          semantic-release
+        fi
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        NPM_TOKEN: ${{ env.NPM_TOKEN || '' }}
