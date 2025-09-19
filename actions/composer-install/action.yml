@@ -1,0 +1,18 @@
+name: "Install PHP Dependencies with Composer using optionally dependencies.json"
+description: "Installs PHP dependencies using Composer. If a dependencies.json file is present, it updates composer.json accordingly before installation."
+author: 'Ibexa AS'
+
+runs:
+    using: "composite"
+    steps:
+        - name: 'Process dependencies.json and update composer.json'
+          shell: bash
+          run: |
+            if [[ -f dependencies.json ]]
+            then
+              ./actions/composer-install/composer-replace-dependencies.bash dependencies.json
+            fi
+
+        - uses: ramsey/composer-install@v3
+          with:
+            dependency-versions: highest
