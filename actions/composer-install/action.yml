@@ -5,14 +5,20 @@ author: 'Ibexa AS'
 runs:
     using: "composite"
     steps:
-        - name: 'Process dependencies.json and update composer.json'
-          shell: bash
-          run: |
-            if [[ -f dependencies.json ]]
-            then
-              ./actions/composer-install/composer-replace-dependencies.bash dependencies.json
-            fi
+        -   name: Set GitHub Path
+            run: echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+            shell: bash
+            env:
+                GITHUB_ACTION_PATH: ${{ github.action_path }}
 
-        - uses: ramsey/composer-install@v3
-          with:
-            dependency-versions: highest
+        -   name: 'Process dependencies.json and update composer.json'
+            shell: bash
+            run: |
+                if [[ -f dependencies.json ]]
+                then
+                  composer-replace-dependencies.bash dependencies.json
+                fi
+
+        -   uses: ramsey/composer-install@v3
+            with:
+                dependency-versions: highest
